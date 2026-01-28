@@ -1,0 +1,24 @@
+[project]
+name = "clif-srtr-record-linkage"
+version = "2.1.0"
+description = "CLIF SRTR Record Linkage"
+requires-python = ">=3.9"
+dependencies = [
+    "polars>=0.20.0",
+    "matplotlib>=3.7.0",
+    "jupyter>=1.0.0",
+    "clifpy==0.3.8",
+    "sas7bdat>=2.2.3",
+    "duckdb==1.4.0",
+    "pandas==2.3.2",
+    "pyarrow==21.0.0",
+    "streamlit>=1.50.0",
+    "plotly>=6.5.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["utils"]
