@@ -3,6 +3,5 @@
     "tables_path": "/path/to/tables/",
     "file_type": "csv/parquet/", 
     "timezone": "eg. US/Eastern",
-    "project_root": "path/to/this/project",
-    "SRTR_data_path": "path/to/SAF Q2 2025/pubsaf2506"
+    "project_root": "path/to/this/project"
 }
