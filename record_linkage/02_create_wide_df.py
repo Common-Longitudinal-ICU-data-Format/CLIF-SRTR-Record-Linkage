@@ -19,7 +19,7 @@ import pandas as pd
 import clifpy
 from utils.config import config
 from utils.io import read_data
-from utils.outlier_handler import apply_outlier_handling
+from clifpy.utils.outlier_handler import apply_outlier_handling
 import gc
 import yaml
 
@@ -184,7 +184,7 @@ columns_config = {
     'labs': srtr_config['labs_required_columns'],
     'vitals': srtr_config['vitals_required_columns'],
     'medication_admin_continuous': srtr_config['meds_continuous_required_columns'],
-    'respiratory_support': srtr_config['respiratory_support_required_columns']
+    'medication_admin_intermittent': srtr_config['meds_intermittent_required_columns']
 }
 
 # Define filters for each table (hospitalization_id + category filters)
@@ -200,15 +200,24 @@ filters_config = {
     'medication_admin_continuous': {
         'hospitalization_id': list(final_hosp_ids),
         'med_category': srtr_config['meds_continuous_of_interest']
+    },
+    'medication_admin_intermittent': {
+        'hospitalization_id': list(final_hosp_ids),
+        'med_category': srtr_config['meds_intermittent_of_interest']
     }
 }
 
 # Load all tables in one call
+
+
 clif.initialize(
-    tables=['labs', 'vitals', 'medication_admin_continuous' ],
+    tables=['labs', 'vitals', 'medication_admin_continuous' , 'medication_admin_intermittent'],
     columns=columns_config,
     filters=filters_config
 )
+print("clifpy version:", getattr(clifpy, '__version__', 'unknown'))
+apply_outlier_handling(clif.labs)
+apply_outlier_handling(clif.vitals)
 
 # =============================================================================
 # Extract DataFrames from loaded tables
@@ -216,7 +225,7 @@ clif.initialize(
 labs_df = clif.labs.df.copy()
 vitals_df = clif.vitals.df.copy()
 meds_cont_df = clif.medication_admin_continuous.df.copy()
-
+meds_int_df = clif.medication_admin_intermittent.df.copy()
 # =============================================================================
 # Pivot Vitals: narrow → wide
 # =============================================================================
@@ -263,6 +272,21 @@ meds_cont_wide.columns = ['hospitalization_id', 'event_dttm'] + \
     [f'med_cont_{col}' for col in meds_cont_wide.columns[2:]]
 
 # =============================================================================
+# Pivot Meds Intermittent: narrow → wide
+# =============================================================================
+meds_int_wide = meds_int_df.pivot_table(
+    index=['hospitalization_id', 'admin_dttm'],
+    columns='med_category',
+    values='med_dose',
+    aggfunc='first'
+).reset_index()
+
+# Rename datetime column to event_dttm
+meds_int_wide = meds_int_wide.rename(columns={'admin_dttm': 'event_dttm'})
+meds_int_wide.columns = ['hospitalization_id', 'event_dttm'] + \
+    [f'med_int_{col}' for col in meds_int_wide.columns[2:]]
+
+# =============================================================================
 # Merge all wide tables on hospitalization_id + event_dttm
 # =============================================================================
 wide_df = vitals_wide.merge(
@@ -276,12 +300,19 @@ wide_df = wide_df.merge(
     on=['hospitalization_id', 'event_dttm'],
     how='outer'
 )
+wide_df = wide_df.merge(
+    meds_int_wide,
+    on=['hospitalization_id', 'event_dttm'],
+    how='outer'
+)
 
 # Sort by hospitalization and time
 wide_df = wide_df.sort_values(['hospitalization_id', 'event_dttm']).reset_index(drop=True)
 
 print(f"Final wide dataframe: {wide_df.shape}")
 print(f"Columns: {list(wide_df.columns)}")
+
+del labs_wide, meds_cont_wide, meds_int_wide, labs_df, vitals_df, meds_cont_df, meds_int_df
 
 ################################################################################
 # Respiratory Support
@@ -310,6 +341,36 @@ resp_df = resp_df.rename(columns={col: f'resp_{col}' for col in resp_cols_to_ren
 # Merge with wide_df
 wide_df = wide_df.merge(
     resp_df,
+    on=['hospitalization_id', 'event_dttm'],
+    how='outer'
+)
+
+# Re-sort by hospitalization and time
+wide_df = wide_df.sort_values(['hospitalization_id', 'event_dttm']).reset_index(drop=True)
+
+wide_df.columns
+
+################################################################################
+# CRRT Therapy
+################################################################################
+
+clif.load_table(
+        'crrt_therapy',
+        columns= srtr_config['crrt_required_columns'], 
+        filters={'hospitalization_id': list(final_hosp_ids)}
+    )
+
+# =============================================================================
+# Respiratory Support (already wide format)
+# =============================================================================
+crrt_therapy_df = clif.crrt_therapy.df.copy()
+
+# Rename datetime column to event_dttm
+crrt_therapy_df = crrt_therapy_df.rename(columns={'recorded_dttm': 'event_dttm'})
+
+# Merge with wide_df
+wide_df = wide_df.merge(
+    crrt_therapy_df,
     on=['hospitalization_id', 'event_dttm'],
     how='outer'
 )

@@ -215,7 +215,271 @@ meds_continuous_of_interest:
   - ketamine
   - pentobarbital
   - remifentanil
+# =============================================================================
+# MEDICATION ADMIN INTERMITTENT TABLE
+# =============================================================================
+meds_intermittent_required_columns:
+  - hospitalization_id
+  - admin_dttm
+  - med_name
+  - med_category
+  - med_group
+  - med_route_category
+  - med_dose
+  - med_dose_unit
 
+# Systemic Antibiotics (CMS sepsis qualifying)
+antibiotics_of_interest:
+  - amikacin
+  - amoxicillin
+  - amoxicillin_clavulanate
+  - ampicillin
+  - ampicillin_sulbactam
+  - azithromycin
+  - aztreonam
+  - cefaclor
+  - cefazolin
+  - cefdinir
+  - cefepime
+  - cefotaxime
+  - cefoxitin
+  - ceftazidime
+  - ceftriaxone
+  - cefuroxime
+  - cephalexin
+  - ciprofloxacin
+  - clarithromycin
+  - clindamycin
+  - colistin
+  - daptomycin
+  - dicloxacillin
+  - doripenem
+  - doxycycline
+  - ertapenem
+  - erythromycin
+  - gentamicin
+  - imipenem
+  - levofloxacin
+  - linezolid
+  - meropenem
+  - metronidazole
+  - moxifloxacin
+  - nafcillin
+  - nitrofurantoin
+  - ofloxacin
+  - oxacillin
+  - penicillin
+  - piperacillin_tazobactam
+  - streptomycin
+  - tobramycin
+  - trimethoprim_sulfamethoxazole
+  - vancomycin
+
+# Systemic Antifungals
+antifungals_of_interest:
+  - amphotericin_b
+  - anidulafungin
+  - caspofungin
+  - fluconazole
+  - itraconazole
+  - micafungin
+  - nystatin
+  - voriconazole
+  - posaconazole
+  - isavuconazole
+
+# Antifungals NOT in CLIF
+antifungals_not_in_clif:
+  - clotrimazole
+  - econazole
+  - ketoconazole
+  - miconazole
+  - terbinafine
+
+# Systemic Antivirals
+antivirals_of_interest:
+  - acyclovir
+  - ganciclovir
+  - oseltamivir
+  - peramivir
+  - valacyclovir
+  - cidofovir
+  - foscarnet
+  - valganciclovir
+  - maribavir
+  - ribavirin
+
+# Antivirals NOT in CLIF
+antivirals_not_in_clif:
+  - baloxavir
+  - molnupiravir
+  - nirmatrelvir_ritonavir  # Paxlovid
+  - remdesivir
+  - zanamivir
+  - hcv_medications
+  - hiv_medications
+  - passive_immunity_influenza
+  - passive_immunity_rsv
+  - passive_immunity_sars_cov2
+
+# Steroids
+steroids_of_interest:
+  - dexamethasone
+  - hydrocortisone
+  - methylprednisolone
+  - prednisolone
+  - prednisone
+  - betamethasone
+  - fludrocortisone
+
+# Sedation/Analgesia (intermittent)
+sedation_intermittent_of_interest:
+  - fentanyl
+  - hydromorphone
+  - morphine
+  - oxycodone
+  - ketamine
+  - propofol
+  - midazolam
+  - lorazepam
+  - diazepam
+
+# Paralytics (intermittent)
+paralytics_intermittent_of_interest:
+  - rocuronium
+  - vecuronium
+  - cisatracurium
+  - atracurium
+  - succinylcholine
+
+# Antipsychotics
+antipsychotics_of_interest:
+  - haloperidol
+  - olanzapine
+  - quetiapine
+  - risperidone
+
+# CAR-T therapies
+car_t_of_interest:
+  - axicabtagene_ciloleucel
+  - brexucabtagene_autoleucel
+  - idecabtagene_vicleucel
+  - lisocabtagene_maraleucel
+  - tisagenlecleucel
+
+# Other immunomodulators in CLIF
+immunomodulators_of_interest:
+  - anakinra
+  - tocilizumab
+
+# All intermittent meds combined
+meds_intermittent_of_interest:
+  # Antibiotics
+  - amikacin
+  - amoxicillin
+  - amoxicillin_clavulanate
+  - ampicillin
+  - ampicillin_sulbactam
+  - azithromycin
+  - aztreonam
+  - cefaclor
+  - cefazolin
+  - cefdinir
+  - cefepime
+  - cefotaxime
+  - cefoxitin
+  - ceftazidime
+  - ceftriaxone
+  - cefuroxime
+  - cephalexin
+  - ciprofloxacin
+  - clarithromycin
+  - clindamycin
+  - colistin
+  - daptomycin
+  - dicloxacillin
+  - doripenem
+  - doxycycline
+  - ertapenem
+  - erythromycin
+  - gentamicin
+  - imipenem
+  - levofloxacin
+  - linezolid
+  - meropenem
+  - metronidazole
+  - moxifloxacin
+  - nafcillin
+  - nitrofurantoin
+  - ofloxacin
+  - oxacillin
+  - penicillin
+  - piperacillin_tazobactam
+  - streptomycin
+  - tobramycin
+  - trimethoprim_sulfamethoxazole
+  - vancomycin
+  # Antifungals
+  - amphotericin_b
+  - anidulafungin
+  - caspofungin
+  - fluconazole
+  - itraconazole
+  - micafungin
+  - nystatin
+  - voriconazole
+  - posaconazole
+  - isavuconazole
+  # Antivirals
+  - acyclovir
+  - ganciclovir
+  - oseltamivir
+  - peramivir
+  - valacyclovir
+  - cidofovir
+  - foscarnet
+  - valganciclovir
+  - maribavir
+  - ribavirin
+  # Steroids
+  - dexamethasone
+  - hydrocortisone
+  - methylprednisolone
+  - prednisolone
+  - prednisone
+  - betamethasone
+  - fludrocortisone
+  # Sedation/Analgesia (intermittent)
+  - fentanyl
+  - hydromorphone
+  - morphine
+  - oxycodone
+  - ketamine
+  - propofol
+  - midazolam
+  - lorazepam
+  - diazepam
+  # Paralytics (intermittent)
+  - rocuronium
+  - vecuronium
+  - cisatracurium
+  - atracurium
+  - succinylcholine
+  # Antipsychotics
+  - haloperidol
+  - olanzapine
+  - quetiapine
+  - risperidone
+  # CAR-T therapies
+  - axicabtagene_ciloleucel
+  - brexucabtagene_autoleucel
+  - idecabtagene_vicleucel
+  - lisocabtagene_maraleucel
+  - tisagenlecleucel
+  # Immunomodulators
+  - anakinra
+  - tocilizumab
+  
 # =============================================================================
 # RESPIRATORY SUPPORT TABLE
 # =============================================================================
@@ -274,11 +538,6 @@ crrt_required_columns:
   - hospitalization_id
   - recorded_dttm
   - crrt_mode_category
-  - blood_flow_rate
-  - pre_filter_replacement_fluid_rate
-  - post_filter_replacement_fluid_rate
-  - dialysate_flow_rate
-  - ultrafiltration_out
 
 # =============================================================================
 # PATIENT ASSESSMENT TABLE (for GCS, RASS, CAM)

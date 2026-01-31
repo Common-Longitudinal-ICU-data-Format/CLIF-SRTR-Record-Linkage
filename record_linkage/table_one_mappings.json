@@ -1,0 +1,330 @@
+{
+  "demographics": {
+    "age_years": {
+      "label": "Age (years)",
+      "srtr": "DON_AGE",
+      "ehr": "age_at_admission",
+      "type": "continuous",
+      "tolerance_key": "age"
+    },
+    "age_months": {
+      "label": "Age (months)",
+      "srtr": "DON_AGE_IN_MONTHS",
+      "ehr": "age_at_death_months",
+      "type": "continuous",
+      "tolerance_key": "age_months"
+    },
+    "sex_male": {
+      "label": "Male",
+      "srtr": "DON_GENDER",
+      "ehr": "gender",
+      "type": "binary",
+      "srtr_positive_values": ["M"],
+      "ehr_positive_values": ["M"]
+    },
+    "sex_female": {
+      "label": "Female",
+      "srtr": "DON_GENDER",
+      "ehr": "gender",
+      "type": "binary",
+      "srtr_positive_values": ["F"],
+      "ehr_positive_values": ["F"]
+    },
+    "race": {
+      "label": "Race (standardized)",
+      "srtr": "DON_race_std",
+      "ehr": "race_std",
+      "type": "categorical"
+    },
+    "ethnicity": {
+      "label": "Ethnicity (standardized)",
+      "srtr": "DON_ethnicity_std",
+      "ehr": "ethnicity_std",
+      "type": "categorical"
+    }
+  },
+  "clinical_measurements": {
+    "height": {
+      "label": "Height (cm)",
+      "srtr": "DON_HGT_CM",
+      "ehr": "last_height_cm",
+      "type": "continuous",
+      "tolerance_key": "height"
+    },
+    "weight": {
+      "label": "Weight (kg)",
+      "srtr": "DON_WGT_KG",
+      "ehr": "last_weight_kg",
+      "type": "continuous",
+      "tolerance_key": "weight"
+    }
+  },
+  "laboratory_values": {
+    "creatinine": {
+      "label": "Creatinine (mg/dL)",
+      "srtr": "DON_CREAT",
+      "ehr": "creatinine_value",
+      "type": "continuous",
+      "digits": 2,
+      "tolerance_key": "creatinine"
+    },
+    "bilirubin": {
+      "label": "Total bilirubin (mg/dL)",
+      "srtr": "DON_TOT_BILI",
+      "ehr": "bilirubin_total_value",
+      "type": "continuous",
+      "digits": 2,
+      "tolerance_key": "bilirubin"
+    },
+    "ast": {
+      "label": "AST/SGOT (U/L)",
+      "srtr": "DON_SGOT",
+      "ehr": "ast_value",
+      "type": "continuous",
+      "digits": 1,
+      "tolerance_key": "ast"
+    },
+    "alt": {
+      "label": "ALT/SGPT (U/L)",
+      "srtr": "DON_SGPT",
+      "ehr": "alt_value",
+      "type": "continuous",
+      "digits": 1,
+      "tolerance_key": "alt"
+    },
+    "po2": {
+      "label": "PO2 Arterial (mmHg)",
+      "srtr": "DON_PO2",
+      "ehr": "po2_arterial_value",
+      "type": "continuous",
+      "digits": 1,
+      "tolerance_key": "po2"
+    },
+    "pco2": {
+      "label": "PCO2",
+      "srtr": "DON_PCO2",
+      "ehr": "pco2_venous_value",
+      "type": "continuous",
+      "digits": 1,
+      "tolerance_key": "pco2",
+      "note": "SRTR is arterial, EHR is venous - potential mismatch"
+    },
+    "ph": {
+      "label": "pH Arterial",
+      "srtr": "DON_PH",
+      "ehr": "ph_arterial_value",
+      "type": "continuous",
+      "digits": 2,
+      "tolerance_key": "ph"
+    },
+    "bun": {
+      "label": "BUN",
+      "srtr": "DON_BUN",
+      "ehr": "bun_value",
+      "type": "continuous",
+      "digits": 1,
+      "tolerance_key": "bun"
+    },
+    "sodium": {
+      "label": "Sodium",
+      "srtr": "DON_SODIUM",
+      "ehr": "sodium_value",
+      "type": "continuous",
+      "digits": 1,
+      "tolerance_key": "sodium"
+    },
+    "inr": {
+      "label": "INR",
+      "srtr": "DON_INR",
+      "ehr": "inr_value",
+      "type": "continuous",
+      "digits": 1,
+      "tolerance_key": "inr"
+    },
+    "troponin_i": {
+      "label": "TROPONIN_I",
+      "srtr": "DON_TROPONIN_I",
+      "ehr": "troponin_i_value",
+      "type": "continuous",
+      "digits": 1,
+      "tolerance_key": "troponin_i"
+    },
+    "troponin_t": {
+      "label": "TROPONIN_T",
+      "srtr": "DON_TROPONIN_T",
+      "ehr": "troponin_t_value",
+      "type": "continuous",
+      "digits": 1,
+      "tolerance_key": "troponin_t"
+    },
+    "pf_ratio": {
+      "label": "PF Ratio (PO2/FiO2)",
+      "srtr": "DON_PO2_FIO2",
+      "ehr": "last_pf_ratio",
+      "type": "continuous",
+      "digits": 2,
+      "tolerance_key": "pf_ratio"
+    }
+  },
+  "life_support": {
+    "imv": {
+      "label": "Invasive mechanical ventilation (IMV)",
+      "srtr": null,
+      "ehr": "imv_ever",
+      "type": "binary",
+      "data_source": "matches_pd",
+      "ehr_positive_values": [true]
+    },
+    "crrt": {
+      "label": "CRRT therapy",
+      "srtr": null,
+      "ehr": "crrt_ever",
+      "type": "binary",
+      "data_source": "patients_pd",
+      "ehr_positive_values": [true]
+    },
+    "wlst": {
+      "label": "WLST detected",
+      "srtr": null,
+      "ehr": "wlst_dttm",
+      "type": "presence",
+      "data_source": "matches_pd"
+    }
+  },
+  "medications": {
+    "dopamine": {
+      "label": "Dopamine",
+      "srtr": "INO_MED_DOPAMINE",
+      "ehr": "dopamine_ever",
+      "type": "binary",
+      "srtr_positive_values": ["Y", 1],
+      "ehr_positive_values": [true]
+    },
+    "epinephrine": {
+      "label": "Epinephrine",
+      "srtr": "INO_MED_EPINEPHRINE",
+      "ehr": "epinephrine_ever",
+      "type": "binary",
+      "srtr_positive_values": ["Y", 1],
+      "ehr_positive_values": [true]
+    },
+    "norepinephrine": {
+      "label": "Norepinephrine",
+      "srtr": "INO_MED_LEVOPHED",
+      "ehr": "norepinephrine_ever",
+      "type": "binary",
+      "srtr_positive_values": ["Y", 1],
+      "ehr_positive_values": [true]
+    },
+    "phenylephrine": {
+      "label": "Phenylephrine",
+      "srtr": "INO_MED_NEOSYNEPHRINE",
+      "ehr": "phenylephrine_ever",
+      "type": "binary",
+      "srtr_positive_values": ["Y", 1],
+      "ehr_positive_values": [true]
+    },
+    "vasopressin": {
+      "label": "Vasopressin",
+      "srtr": "DON_ARGININE",
+      "ehr": "vasopressin_ever",
+      "type": "binary",
+      "srtr_positive_values": ["Y", 1],
+      "ehr_positive_values": [true]
+    },
+    "dobutamine": {
+      "label": "Dobutamine",
+      "srtr": "INO_MED_DOPUTAMINE",
+      "ehr": "dobutamine_ever",
+      "type": "binary",
+      "srtr_positive_values": ["Y", 1],
+      "ehr_positive_values": [true],
+      "note": "SRTR has typo: DOPUTAMINE instead of DOBUTAMINE"
+    },
+    "milrinone": {
+      "label": "Milrinone",
+      "srtr": null,
+      "ehr": "milrinone_ever",
+      "type": "binary",
+      "ehr_positive_values": [true]
+    },
+    "fentanyl": {
+      "label": "Fentanyl",
+      "srtr": null,
+      "ehr": "fentanyl_ever",
+      "type": "binary",
+      "ehr_positive_values": [true]
+    },
+    "hydromorphone": {
+      "label": "Hydromorphone",
+      "srtr": null,
+      "ehr": "hydromorphone_ever",
+      "type": "binary",
+      "ehr_positive_values": [true]
+    },
+    "isoproterenol": {
+      "label": "Isoproterenol",
+      "srtr": null,
+      "ehr": "isoproterenol_ever",
+      "type": "binary",
+      "ehr_positive_values": [true]
+    },
+    "morphine": {
+      "label": "Morphine",
+      "srtr": null,
+      "ehr": "morphine_ever",
+      "type": "binary",
+      "ehr_positive_values": [true]
+    },
+    "remifentanil": {
+      "label": "Remifentanil",
+      "srtr": null,
+      "ehr": "remifentanil_ever",
+      "type": "binary",
+      "ehr_positive_values": [true]
+    }
+  },
+  "ehr_specific": {
+    "discharge_category": {
+      "label": "Discharge Category",
+      "srtr": null,
+      "ehr": "discharge_category",
+      "type": "categorical"
+    }
+  },
+  "donor_characteristics": {
+    "donor_utilized": {
+      "label": "Donor utilized",
+      "srtr": "don_utilized",
+      "ehr": null,
+      "type": "binary",
+      "srtr_positive_values": ["Y"]
+    },
+    "dcd": {
+      "label": "Donation after circulatory death (DCD)",
+      "srtr": "DON_NON_HR_BEAT",
+      "ehr": null,
+      "type": "binary",
+      "srtr_positive_values": ["Y"]
+    }
+  },
+  "death_status": {
+    "death_documented": {
+      "label": "Death documented",
+      "srtr": "all_donors_deceased",
+      "ehr": "is_dead",
+      "type": "binary",
+      "srtr_value": "100%",
+      "ehr_positive_values": [1, "1", "TRUE"],
+      "note": "All SRTR donors are deceased by definition"
+    }
+  },
+  "metadata": {
+    "source_file": "create_tableone_by_confidence.py",
+    "notes": {
+      "data_sources": "Some variables come from matches_pd instead of patients_pd",
+      "missing_mappings": "Some medications have no SRTR equivalent",
+      "data_type_mismatches": "PCO2 is arterial in SRTR but venous in EHR"
+    }
+  }
+}

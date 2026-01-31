@@ -31,7 +31,10 @@ output/intermediate
 
 # shared files - get from box
 shared/ 
-
+config_ucmc.json
 # configs
 hospital_provider_mapping.json
 
+notebook_to_script.py
+
+PROGRESSIVE_MATCHING_ALGORITHM.md

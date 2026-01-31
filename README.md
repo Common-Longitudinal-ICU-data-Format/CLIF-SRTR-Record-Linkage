@@ -36,7 +36,7 @@ Edit with your paths:
 ### 1. Generate Matches
 ```bash
 cd record_linkage
-uv run  01_record_linkage_dev.py
+uv run  01_record_linkage.py
 ```
 
 ### 2. Create Wide Dataset

@@ -14,6 +14,9 @@ dependencies = [
     "pyarrow==21.0.0",
     "streamlit>=1.50.0",
     "plotly>=6.5.2",
+    "scipy>=1.13.1",
+    "scikit-learn>=1.6.1",
+    "openpyxl>=3.1.5",
 ]
 
 [build-system]
