@@ -60,7 +60,6 @@ vitals_required_columns:
   - recorded_dttm
   - vital_category
   - vital_value
-  - meas_site_name
 
 vitals_of_interest:
   - temp_c
