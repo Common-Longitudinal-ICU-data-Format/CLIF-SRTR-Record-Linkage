@@ -45,164 +45,502 @@ def _fmt_median_iqr(s: pd.Series, digits: int = 2) -> str:
 
 def create_dcd_donor_summary(
     srtr_df: pl.DataFrame,
-    best_matches_df: pl.DataFrame
+    patients_df: pl.DataFrame,
+    best_matches_df: pl.DataFrame,
+    dcd_only: bool = False
 ) -> pd.DataFrame:
     """
-    Create summary table of donor characteristics focusing on DCD.
+    Create summary table comparing ALL SRTR donors with matched patients by confidence level.
+    Shows all table one variables.
 
     Args:
         srtr_df: SRTR donor data (Polars DataFrame)
+        patients_df: CLIF patient data (Polars DataFrame)  
         best_matches_df: Best matches with confidence levels (Polars DataFrame)
+        dcd_only: If True, filter to show only DCD donors and their matches
 
     Returns:
-        DataFrame with donor characteristics summary
+        DataFrame with donor and patient comparisons by confidence level
     """
     # Convert to pandas for easier manipulation
     srtr_pd = srtr_df.to_pandas()
+    patients_pd = patients_df.to_pandas()
     matches_pd = best_matches_df.to_pandas()
 
     # Load mappings
     mappings = load_table_mappings()
 
-    # Get unique matched donors
-    matched_donor_ids = matches_pd['DONOR_ID'].unique()
-    matched_donors_pd = srtr_pd[srtr_pd['DONOR_ID'].isin(matched_donor_ids)]
+    # Filter for DCD only if requested
+    if dcd_only:
+        # Filter SRTR donors to DCD only
+        srtr_pd = srtr_pd[srtr_pd['DON_NON_HR_BEAT'] == 'Y']
+        
+        # Filter matches to only DCD donors
+        dcd_donor_ids = srtr_pd['DONOR_ID'].unique()
+        matches_pd = matches_pd[matches_pd['DONOR_ID'].isin(dcd_donor_ids)]
 
-    # Calculate DCD statistics
-    total_donors = len(matched_donors_pd)
+    # ALL SRTR donors (filtered for DCD if requested)
+    all_donors_pd = srtr_pd
 
-    # DCD donors
-    dcd_donors = matched_donors_pd[matched_donors_pd['DON_NON_HR_BEAT'] == 'Y']
-    n_dcd = len(dcd_donors)
-
-    # DCD utilized
+    # Get patients and matches by confidence level
+    confidence_levels = ['HIGH', 'MEDIUM', 'LOW']
+    patient_groups = {}
+    match_groups = {}
     
-    print("!!!!!!!!!!!!!!!!DCD donors value counts", dcd_donors['don_utilized'].value_counts(), "\n")
-    dcd_utilized = dcd_donors[dcd_donors['don_utilized'] == 'Y']
-    n_dcd_utilized = len(dcd_utilized)
-
-    # Get confidence level breakdown for DCD donors
-    dcd_donor_ids = dcd_donors['DONOR_ID'].unique()
-    dcd_matches = matches_pd[matches_pd['DONOR_ID'].isin(dcd_donor_ids)]
-
-    # Count by confidence level
-    confidence_counts = dcd_matches.groupby('confidence')['DONOR_ID'].nunique().to_dict()
+    for conf in confidence_levels:
+        conf_matches = matches_pd[matches_pd['confidence'] == conf]
+        conf_encounter_blocks = conf_matches['encounter_block'].unique()
+        patient_groups[conf] = patients_pd[patients_pd['encounter_block'].isin(conf_encounter_blocks)]
+        match_groups[conf] = conf_matches
 
     # Build summary table
     table = []
 
-    # Header
+    # Title row
+    title = "**DCD DONOR SUMMARY**" if dcd_only else "**ALL DONOR SUMMARY**"
     table.append({
-        "Characteristic": "**DONOR CHARACTERISTICS SUMMARY**",
-        "Value": "",
-        "Notes": ""
+        "Variable": title,
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
     })
 
-    # Total matched donors
+    # Sample size
     table.append({
-        "Characteristic": "Total Matched Donors",
-        "Value": f"{total_donors:,}",
-        "Notes": ""
+        "Variable": "N",
+        "SRTR Donors (All)": f"{len(all_donors_pd):,}",
+        "HIGH Confidence Patients": f"{len(patient_groups['HIGH']):,}" if len(patient_groups['HIGH']) > 0 else "0",
+        "MEDIUM Confidence Patients": f"{len(patient_groups['MEDIUM']):,}" if len(patient_groups['MEDIUM']) > 0 else "0",
+        "LOW Confidence Patients": f"{len(patient_groups['LOW']):,}" if len(patient_groups['LOW']) > 0 else "0"
     })
 
-    # Demographics
+    # Blank row
     table.append({
-        "Characteristic": "",
-        "Value": "",
-        "Notes": ""
+        "Variable": "",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
     })
 
+    # DEMOGRAPHICS
     table.append({
-        "Characteristic": "**Demographics**",
-        "Value": "",
-        "Notes": ""
+        "Variable": "**DEMOGRAPHICS**",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
     })
 
     # Age
-    age_col = mappings["demographics"]["age_years"]["srtr"]
-    if age_col in matched_donors_pd.columns:
-        table.append({
-            "Characteristic": "Age (years), median [Q1-Q3]",
-            "Value": _fmt_median_iqr(matched_donors_pd[age_col]),
-            "Notes": ""
-        })
+    age_map = mappings["demographics"]["age_years"]
+    if age_map["srtr"] in all_donors_pd.columns:
+        row = {
+            "Variable": f"{age_map['label']}, median [Q1-Q3]",
+            "SRTR Donors (All)": _fmt_median_iqr(all_donors_pd[age_map["srtr"]])
+        }
+        for conf in confidence_levels:
+            if age_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                row[f"{conf} Confidence Patients"] = _fmt_median_iqr(patient_groups[conf][age_map["ehr"]])
+            else:
+                row[f"{conf} Confidence Patients"] = "—"
+        table.append(row)
 
     # Gender
-    gender_col = mappings["demographics"]["sex_male"]["srtr"]
-    if gender_col in matched_donors_pd.columns:
-        n_male = (matched_donors_pd[gender_col] == 'M').sum()
+    male_map = mappings["demographics"]["sex_male"]
+    if male_map["srtr"] in all_donors_pd.columns:
         table.append({
-            "Characteristic": "Male, n (%)",
-            "Value": _fmt_n_pct(n_male, total_donors),
-            "Notes": ""
+            "Variable": "Gender, n (%)",
+            "SRTR Donors (All)": "",
+            "HIGH Confidence Patients": "",
+            "MEDIUM Confidence Patients": "",
+            "LOW Confidence Patients": ""
         })
+        
+        # Male
+        n_male_donor = all_donors_pd[male_map["srtr"]].isin(male_map["srtr_positive_values"]).sum()
+        row = {
+            "Variable": f"  {male_map['label']}",
+            "SRTR Donors (All)": _fmt_n_pct(n_male_donor, len(all_donors_pd))
+        }
+        for conf in confidence_levels:
+            if male_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                n_male = patient_groups[conf][male_map["ehr"]].isin(male_map["ehr_positive_values"]).sum()
+                row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_male, len(patient_groups[conf]))
+            else:
+                row[f"{conf} Confidence Patients"] = "—"
+        table.append(row)
+
+        # Female
+        female_map = mappings["demographics"]["sex_female"]
+        n_female_donor = all_donors_pd[female_map["srtr"]].isin(female_map["srtr_positive_values"]).sum()
+        row = {
+            "Variable": f"  {female_map['label']}",
+            "SRTR Donors (All)": _fmt_n_pct(n_female_donor, len(all_donors_pd))
+        }
+        for conf in confidence_levels:
+            if female_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                n_female = patient_groups[conf][female_map["ehr"]].isin(female_map["ehr_positive_values"]).sum()
+                row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_female, len(patient_groups[conf]))
+            else:
+                row[f"{conf} Confidence Patients"] = "—"
+        table.append(row)
 
     # Race
-    race_col = mappings["demographics"]["race"]["srtr"]
-    if race_col in matched_donors_pd.columns:
+    race_map = mappings["demographics"]["race"]
+    if race_map["srtr"] in all_donors_pd.columns:
         table.append({
-            "Characteristic": "Race, n (%)",
-            "Value": "",
-            "Notes": ""
+            "Variable": f"{race_map['label']}, n (%)",
+            "SRTR Donors (All)": "",
+            "HIGH Confidence Patients": "",
+            "MEDIUM Confidence Patients": "",
+            "LOW Confidence Patients": ""
         })
-        race_counts = matched_donors_pd[race_col].value_counts()
-        for race, count in race_counts.items():
-            if pd.notna(race):
-                table.append({
-                    "Characteristic": f"  {race}",
-                    "Value": _fmt_n_pct(count, total_donors),
-                    "Notes": ""
-                })
+        
+        # Get all unique races
+        all_races = set()
+        all_races.update(all_donors_pd[race_map["srtr"]].dropna().unique())
+        for conf in confidence_levels:
+            if race_map["ehr"] in patient_groups[conf].columns:
+                all_races.update(patient_groups[conf][race_map["ehr"]].dropna().unique())
+        
+        for race in sorted(all_races):
+            n_donor = (all_donors_pd[race_map["srtr"]] == race).sum()
+            row = {
+                "Variable": f"  {race}",
+                "SRTR Donors (All)": _fmt_n_pct(n_donor, len(all_donors_pd))
+            }
+            for conf in confidence_levels:
+                if race_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                    n_race = (patient_groups[conf][race_map["ehr"]] == race).sum()
+                    row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_race, len(patient_groups[conf]))
+                else:
+                    row[f"{conf} Confidence Patients"] = "—"
+            table.append(row)
+
+    # Ethnicity
+    ethnicity_map = mappings["demographics"]["ethnicity"]
+    if ethnicity_map["srtr"] in all_donors_pd.columns:
+        table.append({
+            "Variable": f"{ethnicity_map['label']}, n (%)",
+            "SRTR Donors (All)": "",
+            "HIGH Confidence Patients": "",
+            "MEDIUM Confidence Patients": "",
+            "LOW Confidence Patients": ""
+        })
+        
+        # Get all unique ethnicities
+        all_ethnicities = set()
+        all_ethnicities.update(all_donors_pd[ethnicity_map["srtr"]].dropna().unique())
+        for conf in confidence_levels:
+            if ethnicity_map["ehr"] in patient_groups[conf].columns:
+                all_ethnicities.update(patient_groups[conf][ethnicity_map["ehr"]].dropna().unique())
+        
+        for ethnicity in sorted(all_ethnicities):
+            n_donor = (all_donors_pd[ethnicity_map["srtr"]] == ethnicity).sum()
+            row = {
+                "Variable": f"  {ethnicity}",
+                "SRTR Donors (All)": _fmt_n_pct(n_donor, len(all_donors_pd))
+            }
+            for conf in confidence_levels:
+                if ethnicity_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                    n_eth = (patient_groups[conf][ethnicity_map["ehr"]] == ethnicity).sum()
+                    row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_eth, len(patient_groups[conf]))
+                else:
+                    row[f"{conf} Confidence Patients"] = "—"
+            table.append(row)
 
     # Blank row
     table.append({
-        "Characteristic": "",
-        "Value": "",
-        "Notes": ""
+        "Variable": "",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
     })
 
-    # Donation Type
+    # CLINICAL MEASUREMENTS
     table.append({
-        "Characteristic": "**Donation Type**",
-        "Value": "",
-        "Notes": ""
+        "Variable": "**CLINICAL MEASUREMENTS**",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+
+    # Height and Weight
+    for measure_key in ["height", "weight"]:
+        measure_map = mappings["clinical_measurements"][measure_key]
+        if measure_map["srtr"] in all_donors_pd.columns:
+            row = {
+                "Variable": f"{measure_map['label']}, median [Q1-Q3]",
+                "SRTR Donors (All)": _fmt_median_iqr(all_donors_pd[measure_map["srtr"]])
+            }
+            for conf in confidence_levels:
+                if measure_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                    row[f"{conf} Confidence Patients"] = _fmt_median_iqr(patient_groups[conf][measure_map["ehr"]])
+                else:
+                    row[f"{conf} Confidence Patients"] = "—"
+            table.append(row)
+
+    # Blank row
+    table.append({
+        "Variable": "",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+
+    # LABORATORY VALUES
+    table.append({
+        "Variable": "**LABORATORY VALUES**",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+
+    # Process all lab values
+    for lab_key, lab_map in mappings["laboratory_values"].items():
+        if lab_map["srtr"] in all_donors_pd.columns:
+            digits = lab_map.get("digits", 1)
+            row = {
+                "Variable": f"{lab_map['label']}, median [Q1-Q3]",
+                "SRTR Donors (All)": _fmt_median_iqr(all_donors_pd[lab_map["srtr"]], digits=digits)
+            }
+            for conf in confidence_levels:
+                if lab_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                    row[f"{conf} Confidence Patients"] = _fmt_median_iqr(patient_groups[conf][lab_map["ehr"]], digits=digits)
+                else:
+                    row[f"{conf} Confidence Patients"] = "—"
+            table.append(row)
+
+    # Blank row
+    table.append({
+        "Variable": "",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+
+    # LIFE SUPPORT (EHR only)
+    table.append({
+        "Variable": "**LIFE SUPPORT (EHR only)**",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+
+    for ls_key, ls_map in mappings["life_support"].items():
+        # Check data source - some variables come from matches_pd, others from patients_pd
+        data_source = ls_map.get("data_source", "patients_pd")
+        
+        if ls_map["type"] == "binary":
+            row = {
+                "Variable": f"{ls_map['label']}, n (%)",
+                "SRTR Donors (All)": "—"  # No SRTR data
+            }
+            for conf in confidence_levels:
+                # Use appropriate data source based on JSON mapping
+                if data_source == "matches_pd":
+                    # Get data from matches for this confidence level
+                    if ls_map["ehr"] in match_groups[conf].columns and len(match_groups[conf]) > 0:
+                        n_positive = match_groups[conf][ls_map["ehr"]].isin(ls_map.get("ehr_positive_values", [True])).sum()
+                        row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_positive, len(match_groups[conf]))
+                    else:
+                        row[f"{conf} Confidence Patients"] = "—"
+                else:
+                    # Get data from patients (existing logic)
+                    if ls_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                        n_positive = patient_groups[conf][ls_map["ehr"]].isin(ls_map.get("ehr_positive_values", [True])).sum()
+                        row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_positive, len(patient_groups[conf]))
+                    else:
+                        row[f"{conf} Confidence Patients"] = "—"
+            table.append(row)
+            
+        elif ls_map["type"] == "presence":
+            row = {
+                "Variable": f"{ls_map['label']}, n (%)",
+                "SRTR Donors (All)": "—"  # No SRTR data
+            }
+            for conf in confidence_levels:
+                # Use appropriate data source based on JSON mapping
+                if data_source == "matches_pd":
+                    # Get data from matches for this confidence level
+                    if ls_map["ehr"] in match_groups[conf].columns and len(match_groups[conf]) > 0:
+                        n_with_value = match_groups[conf][ls_map["ehr"]].notna().sum()
+                        row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_with_value, len(match_groups[conf]))
+                    else:
+                        row[f"{conf} Confidence Patients"] = "—"
+                else:
+                    # Get data from patients (existing logic)
+                    if ls_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                        n_with_value = patient_groups[conf][ls_map["ehr"]].notna().sum()
+                        row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_with_value, len(patient_groups[conf]))
+                    else:
+                        row[f"{conf} Confidence Patients"] = "—"
+            table.append(row)
+
+    # Blank row
+    table.append({
+        "Variable": "",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+
+    # MEDICATIONS
+    table.append({
+        "Variable": "**MEDICATIONS**",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+
+    for med_key, med_map in mappings["medications"].items():
+        row = {"Variable": f"{med_map['label']}, n (%)"}
+        
+        # SRTR donor value
+        if med_map["srtr"] and med_map["srtr"] in all_donors_pd.columns:
+            n_positive = all_donors_pd[med_map["srtr"]].isin(med_map.get("srtr_positive_values", ["Y", 1])).sum()
+            row["SRTR Donors (All)"] = _fmt_n_pct(n_positive, len(all_donors_pd))
+        else:
+            row["SRTR Donors (All)"] = "—"
+        
+        # Patient values by confidence
+        for conf in confidence_levels:
+            if med_map["ehr"] and med_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+                n_positive = patient_groups[conf][med_map["ehr"]].isin(med_map.get("ehr_positive_values", [True])).sum()
+                row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_positive, len(patient_groups[conf]))
+            else:
+                row[f"{conf} Confidence Patients"] = "—"
+        
+        table.append(row)
+
+    # Blank row
+    table.append({
+        "Variable": "",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+
+    # DONOR CHARACTERISTICS
+    table.append({
+        "Variable": "**DONOR CHARACTERISTICS**",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
     })
 
     # DCD status
-    table.append({
-        "Characteristic": "Donation after Circulatory Death (DCD), n (%)",
-        "Value": _fmt_n_pct(n_dcd, total_donors),
-        "Notes": ""
-    })
+    dcd_map = mappings["donor_characteristics"]["dcd"]
+    if dcd_map["srtr"] in all_donors_pd.columns:
+        n_dcd = all_donors_pd[dcd_map["srtr"]].isin(dcd_map.get("srtr_positive_values", [1, "Y", "YES"])).sum()
+        table.append({
+            "Variable": f"{dcd_map['label']}, n (%)",
+            "SRTR Donors (All)": _fmt_n_pct(n_dcd, len(all_donors_pd)),
+            "HIGH Confidence Patients": "—",
+            "MEDIUM Confidence Patients": "—",
+            "LOW Confidence Patients": "—"
+        })
 
-    # DCD utilized
-    table.append({
-        "Characteristic": "DCD Donors Utilized, n (%)",
-        "Value": _fmt_n_pct(n_dcd_utilized, n_dcd),
-        "Notes": f"% of DCD donors"
-    })
+    # Donor utilized
+    util_map = mappings["donor_characteristics"]["donor_utilized"]
+    if util_map["srtr"] in all_donors_pd.columns:
+        # Use == 'Y' for don_utilized
+        n_utilized = (all_donors_pd[util_map["srtr"]] == 'Y').sum()
+        table.append({
+            "Variable": f"{util_map['label']}, n (%)",
+            "SRTR Donors (All)": _fmt_n_pct(n_utilized, len(all_donors_pd)),
+            "HIGH Confidence Patients": "—",
+            "MEDIUM Confidence Patients": "—",
+            "LOW Confidence Patients": "—"
+        })
+
+        # If DCD only, show DCD utilized
+        if dcd_only:
+            n_dcd_utilized = ((all_donors_pd['DON_NON_HR_BEAT'] == 'Y') & (all_donors_pd[util_map["srtr"]] == 'Y')).sum()
+            n_dcd = (all_donors_pd['DON_NON_HR_BEAT'] == 'Y').sum()
+            table.append({
+                "Variable": "  DCD Utilized, n (% of DCD)",
+                "SRTR Donors (All)": _fmt_n_pct(n_dcd_utilized, n_dcd) if n_dcd > 0 else "—",
+                "HIGH Confidence Patients": "—",
+                "MEDIUM Confidence Patients": "—",
+                "LOW Confidence Patients": "—"
+            })
 
     # Blank row
     table.append({
-        "Characteristic": "",
-        "Value": "",
-        "Notes": ""
+        "Variable": "",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
     })
 
-    # Confidence matching for DCD donors
+    # DEATH STATUS
     table.append({
-        "Characteristic": "**DCD Donor Matching Confidence**",
-        "Value": "",
-        "Notes": ""
+        "Variable": "**DEATH STATUS**",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
     })
 
-    for conf_level in ['HIGH', 'MEDIUM', 'LOW']:
-        n_conf = confidence_counts.get(conf_level, 0)
-        table.append({
-            "Characteristic": f"{conf_level} confidence, n (%)",
-            "Value": _fmt_n_pct(n_conf, n_dcd),
-            "Notes": f"% of DCD donors"
-        })
+    # Death documented
+    death_map = mappings["death_status"]["death_documented"]
+    
+    # All donors are deceased
+    row = {
+        "Variable": f"{death_map['label']}, n (%)",
+        "SRTR Donors (All)": _fmt_n_pct(len(all_donors_pd), len(all_donors_pd))  # 100%
+    }
+    
+    for conf in confidence_levels:
+        if death_map["ehr"] in patient_groups[conf].columns and len(patient_groups[conf]) > 0:
+            n_dead = patient_groups[conf][death_map["ehr"]].isin(death_map.get("ehr_positive_values", [1, "1", "TRUE"])).sum()
+            row[f"{conf} Confidence Patients"] = _fmt_n_pct(n_dead, len(patient_groups[conf]))
+        else:
+            row[f"{conf} Confidence Patients"] = "—"
+    
+    table.append(row)
+
+    # Add note about matched counts
+    table.append({
+        "Variable": "",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+
+    # Summary of matching
+    n_matched = len(matches_pd['DONOR_ID'].unique())
+    table.append({
+        "Variable": "**MATCHING SUMMARY**",
+        "SRTR Donors (All)": "",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
+    
+    pct_matched = (n_matched / len(all_donors_pd) * 100) if len(all_donors_pd) > 0 else 0
+    table.append({
+        "Variable": "Donors with matches, n (%)",
+        "SRTR Donors (All)": f"{n_matched} ({pct_matched:.1f}%)",
+        "HIGH Confidence Patients": "",
+        "MEDIUM Confidence Patients": "",
+        "LOW Confidence Patients": ""
+    })
 
     return pd.DataFrame(table)
 
@@ -274,21 +612,31 @@ def create_dcd_four_population_comparison(
     )
 
     # Define four populations
+    # For DCD populations, also keep track of the corresponding matches for life support data
+    dcd_encounter_blocks = merged_data[merged_data['DON_NON_HR_BEAT'] == 'Y']['encounter_block'].unique()
+    dcd_utilized_encounter_blocks = merged_data[
+        (merged_data['DON_NON_HR_BEAT'] == 'Y') &
+        (merged_data['don_utilized'] == 'Y')
+    ]['encounter_block'].unique()
+    
+    # Store match data for life support variables that come from matches_pd
+    dcd_matches = matches_pd[matches_pd['encounter_block'].isin(dcd_encounter_blocks)]
+    dcd_utilized_matches = matches_pd[matches_pd['encounter_block'].isin(dcd_utilized_encounter_blocks)]
+    
     populations = {
         'a) SRTR DCD': matched_srtr[matched_srtr['DON_NON_HR_BEAT'] == 'Y'],
-        'b) Matched EHR': matched_patients[matched_patients['encounter_block'].isin(
-            merged_data[merged_data['DON_NON_HR_BEAT'] == 'Y']['encounter_block']
-        )],
+        'b) Matched EHR': matched_patients[matched_patients['encounter_block'].isin(dcd_encounter_blocks)],
         'c) SRTR DCD Utilized': matched_srtr[
             (matched_srtr['DON_NON_HR_BEAT'] == 'Y') &
             (matched_srtr['don_utilized'] == 'Y')
         ],
-        'd) Matched EHR Utilized': matched_patients[matched_patients['encounter_block'].isin(
-            merged_data[
-                (merged_data['DON_NON_HR_BEAT'] == 'Y') &
-                (merged_data['don_utilized'] == 'Y')
-            ]['encounter_block']
-        )]
+        'd) Matched EHR Utilized': matched_patients[matched_patients['encounter_block'].isin(dcd_utilized_encounter_blocks)]
+    }
+    
+    # Also store the matches data for life support variables
+    match_populations = {
+        'b) Matched EHR': dcd_matches,
+        'd) Matched EHR Utilized': dcd_utilized_matches
     }
 
     # For agreement calculations
@@ -487,9 +835,7 @@ def create_dcd_four_population_comparison(
     })
 
     # Add selected lab values
-    for lab_key in ["creatinine", "bilirubin", "ast", "alt", "sodium", "bun"]:
-        if lab_key not in mappings["laboratory_values"]:
-            continue
+    for lab_key in mappings["laboratory_values"].keys():
         lab_map = mappings["laboratory_values"][lab_key]
         if lab_map["srtr"] in matched_srtr.columns and lab_map["ehr"] in matched_patients.columns:
             # Calculate agreement
@@ -531,6 +877,256 @@ def create_dcd_four_population_comparison(
                 "Agreement (c-d)": calc_lab_agreement(dcd_utilized_merged, lab_map["srtr"], lab_map["ehr"], lab_map.get("tolerance_key"))
             })
 
+    # Blank row
+    table.append({
+        "Variable": "",
+        "a) SRTR DCD": "",
+        "b) Matched EHR": "",
+        "Agreement (a-b)": "",
+        "c) SRTR DCD Utilized": "",
+        "d) Matched EHR Utilized": "",
+        "Agreement (c-d)": ""
+    })
+
+    # LIFE SUPPORT (EHR only) - FIXED to check data_source
+    table.append({
+        "Variable": "**LIFE SUPPORT (EHR only)**",
+        "a) SRTR DCD": "",
+        "b) Matched EHR": "",
+        "Agreement (a-b)": "",
+        "c) SRTR DCD Utilized": "",
+        "d) Matched EHR Utilized": "",
+        "Agreement (c-d)": ""
+    })
+
+    for ls_key, ls_map in mappings["life_support"].items():
+        # Check data source for this variable
+        data_source = ls_map.get("data_source", "patients_pd")
+        
+        if ls_map["type"] == "binary":
+            # Choose the correct data based on data_source
+            if data_source == "matches_pd":
+                # Use match data
+                dcd_data = match_populations['b) Matched EHR']
+                util_data = match_populations['d) Matched EHR Utilized']
+            else:
+                # Use patient data (default)
+                dcd_data = populations['b) Matched EHR']
+                util_data = populations['d) Matched EHR Utilized']
+            
+            # Calculate values
+            dcd_val = "—"
+            util_val = "—"
+            
+            if ls_map["ehr"] in dcd_data.columns and len(dcd_data) > 0:
+                n_positive = dcd_data[ls_map["ehr"]].isin(ls_map.get("ehr_positive_values", [True])).sum()
+                dcd_val = _fmt_n_pct(n_positive, len(dcd_data))
+            
+            if ls_map["ehr"] in util_data.columns and len(util_data) > 0:
+                n_positive = util_data[ls_map["ehr"]].isin(ls_map.get("ehr_positive_values", [True])).sum()
+                util_val = _fmt_n_pct(n_positive, len(util_data))
+            
+            table.append({
+                "Variable": f"{ls_map['label']}, n (%)",
+                "a) SRTR DCD": "—",  # No SRTR data
+                "b) Matched EHR": dcd_val,
+                "Agreement (a-b)": "—",
+                "c) SRTR DCD Utilized": "—",
+                "d) Matched EHR Utilized": util_val,
+                "Agreement (c-d)": "—"
+            })
+            
+        elif ls_map["type"] == "presence":
+            # Choose the correct data based on data_source
+            if data_source == "matches_pd":
+                # Use match data
+                dcd_data = match_populations['b) Matched EHR']
+                util_data = match_populations['d) Matched EHR Utilized']
+            else:
+                # Use patient data (default)
+                dcd_data = populations['b) Matched EHR']
+                util_data = populations['d) Matched EHR Utilized']
+            
+            # Calculate values
+            dcd_val = "—"
+            util_val = "—"
+            
+            if ls_map["ehr"] in dcd_data.columns and len(dcd_data) > 0:
+                n_with_value = dcd_data[ls_map["ehr"]].notna().sum()
+                dcd_val = _fmt_n_pct(n_with_value, len(dcd_data))
+            
+            if ls_map["ehr"] in util_data.columns and len(util_data) > 0:
+                n_with_value = util_data[ls_map["ehr"]].notna().sum()
+                util_val = _fmt_n_pct(n_with_value, len(util_data))
+            
+            table.append({
+                "Variable": f"{ls_map['label']}, n (%)",
+                "a) SRTR DCD": "—",
+                "b) Matched EHR": dcd_val,
+                "Agreement (a-b)": "—",
+                "c) SRTR DCD Utilized": "—",
+                "d) Matched EHR Utilized": util_val,
+                "Agreement (c-d)": "—"
+            })
+
+    # Blank row
+    table.append({
+        "Variable": "",
+        "a) SRTR DCD": "",
+        "b) Matched EHR": "",
+        "Agreement (a-b)": "",
+        "c) SRTR DCD Utilized": "",
+        "d) Matched EHR Utilized": "",
+        "Agreement (c-d)": ""
+    })
+
+    # MEDICATIONS
+    table.append({
+        "Variable": "**MEDICATIONS**",
+        "a) SRTR DCD": "",
+        "b) Matched EHR": "",
+        "Agreement (a-b)": "",
+        "c) SRTR DCD Utilized": "",
+        "d) Matched EHR Utilized": "",
+        "Agreement (c-d)": ""
+    })
+
+    for med_key, med_map in mappings["medications"].items():
+        # SRTR columns
+        srtr_dcd_val = "—"
+        srtr_util_val = "—"
+        if med_map["srtr"] and med_map["srtr"] in populations['a) SRTR DCD'].columns:
+            n_positive_dcd = populations['a) SRTR DCD'][med_map["srtr"]].isin(med_map.get("srtr_positive_values", ["Y", 1])).sum()
+            srtr_dcd_val = _fmt_n_pct(n_positive_dcd, len(populations['a) SRTR DCD']))
+
+            if len(populations['c) SRTR DCD Utilized']) > 0:
+                n_positive_util = populations['c) SRTR DCD Utilized'][med_map["srtr"]].isin(med_map.get("srtr_positive_values", ["Y", 1])).sum()
+                srtr_util_val = _fmt_n_pct(n_positive_util, len(populations['c) SRTR DCD Utilized']))
+
+        # EHR columns
+        ehr_dcd_val = "—"
+        ehr_util_val = "—"
+        if med_map["ehr"] and med_map["ehr"] in populations['b) Matched EHR'].columns:
+            n_positive_dcd = populations['b) Matched EHR'][med_map["ehr"]].isin(med_map.get("ehr_positive_values", [True])).sum()
+            ehr_dcd_val = _fmt_n_pct(n_positive_dcd, len(populations['b) Matched EHR']))
+
+            if len(populations['d) Matched EHR Utilized']) > 0:
+                n_positive_util = populations['d) Matched EHR Utilized'][med_map["ehr"]].isin(med_map.get("ehr_positive_values", [True])).sum()
+                ehr_util_val = _fmt_n_pct(n_positive_util, len(populations['d) Matched EHR Utilized']))
+
+        # Agreement
+        agreement_dcd = "—"
+        agreement_util = "—"
+        if med_map["srtr"] and med_map["ehr"] and med_map["srtr"] in dcd_merged.columns and med_map["ehr"] in dcd_merged.columns:
+            agreement_dcd = calc_binary_agreement(dcd_merged, med_map["srtr"], med_map["ehr"],
+                                                 med_map.get("srtr_positive_values", ["Y", 1]),
+                                                 med_map.get("ehr_positive_values", [True]))
+            if len(dcd_utilized_merged) > 0:
+                agreement_util = calc_binary_agreement(dcd_utilized_merged, med_map["srtr"], med_map["ehr"],
+                                                      med_map.get("srtr_positive_values", ["Y", 1]),
+                                                      med_map.get("ehr_positive_values", [True]))
+
+        table.append({
+            "Variable": f"{med_map['label']}, n (%)",
+            "a) SRTR DCD": srtr_dcd_val,
+            "b) Matched EHR": ehr_dcd_val,
+            "Agreement (a-b)": agreement_dcd,
+            "c) SRTR DCD Utilized": srtr_util_val,
+            "d) Matched EHR Utilized": ehr_util_val,
+            "Agreement (c-d)": agreement_util
+        })
+
+    # Blank row
+    table.append({
+        "Variable": "",
+        "a) SRTR DCD": "",
+        "b) Matched EHR": "",
+        "Agreement (a-b)": "",
+        "c) SRTR DCD Utilized": "",
+        "d) Matched EHR Utilized": "",
+        "Agreement (c-d)": ""
+    })
+
+    # DONOR CHARACTERISTICS
+    table.append({
+        "Variable": "**DONOR CHARACTERISTICS**",
+        "a) SRTR DCD": "",
+        "b) Matched EHR": "",
+        "Agreement (a-b)": "",
+        "c) SRTR DCD Utilized": "",
+        "d) Matched EHR Utilized": "",
+        "Agreement (c-d)": ""
+    })
+
+    # DCD status (should be 100% for all since we filtered for DCD)
+    dcd_map = mappings["donor_characteristics"]["dcd"]
+    if dcd_map["srtr"] in populations['a) SRTR DCD'].columns:
+        n_dcd = populations['a) SRTR DCD'][dcd_map["srtr"]].isin(dcd_map.get("srtr_positive_values", [1, "Y", "YES"])).sum()
+        n_dcd_util = populations['c) SRTR DCD Utilized'][dcd_map["srtr"]].isin(dcd_map.get("srtr_positive_values", [1, "Y", "YES"])).sum() if len(populations['c) SRTR DCD Utilized']) > 0 else 0
+
+        table.append({
+            "Variable": f"{dcd_map['label']}, n (%)",
+            "a) SRTR DCD": _fmt_n_pct(n_dcd, len(populations['a) SRTR DCD'])),
+            "b) Matched EHR": "—",
+            "Agreement (a-b)": "—",
+            "c) SRTR DCD Utilized": _fmt_n_pct(n_dcd_util, len(populations['c) SRTR DCD Utilized'])) if len(populations['c) SRTR DCD Utilized']) > 0 else "—",
+            "d) Matched EHR Utilized": "—",
+            "Agreement (c-d)": "—"
+        })
+
+    # Donor utilized
+    util_map = mappings["donor_characteristics"]["donor_utilized"]
+    if util_map["srtr"] in populations['a) SRTR DCD'].columns:
+        # Use == 'Y' for don_utilized
+        n_utilized_dcd = (populations['a) SRTR DCD'][util_map["srtr"]] == 'Y').sum()
+        n_utilized_util = (populations['c) SRTR DCD Utilized'][util_map["srtr"]] == 'Y').sum() if len(populations['c) SRTR DCD Utilized']) > 0 else 0
+
+        table.append({
+            "Variable": f"{util_map['label']}, n (%)",
+            "a) SRTR DCD": _fmt_n_pct(n_utilized_dcd, len(populations['a) SRTR DCD'])),
+            "b) Matched EHR": "—",
+            "Agreement (a-b)": "—",
+            "c) SRTR DCD Utilized": _fmt_n_pct(n_utilized_util, len(populations['c) SRTR DCD Utilized'])) if len(populations['c) SRTR DCD Utilized']) > 0 else "—",
+            "d) Matched EHR Utilized": "—",
+            "Agreement (c-d)": "—"
+        })
+
+    # Blank row
+    table.append({
+        "Variable": "",
+        "a) SRTR DCD": "",
+        "b) Matched EHR": "",
+        "Agreement (a-b)": "",
+        "c) SRTR DCD Utilized": "",
+        "d) Matched EHR Utilized": "",
+        "Agreement (c-d)": ""
+    })
+
+    # DEATH STATUS
+    table.append({
+        "Variable": "**DEATH STATUS**",
+        "a) SRTR DCD": "",
+        "b) Matched EHR": "",
+        "Agreement (a-b)": "",
+        "c) SRTR DCD Utilized": "",
+        "d) Matched EHR Utilized": "",
+        "Agreement (c-d)": ""
+    })
+
+    # Death documented
+    death_map = mappings["death_status"]["death_documented"]
+
+    # All donors are deceased (100%)
+    table.append({
+        "Variable": f"{death_map['label']}, n (%)",
+        "a) SRTR DCD": _fmt_n_pct(len(populations['a) SRTR DCD']), len(populations['a) SRTR DCD'])),  # 100%
+        "b) Matched EHR": _fmt_n_pct(len(populations['b) Matched EHR']), len(populations['b) Matched EHR'])) if len(populations['b) Matched EHR']) > 0 else "—",  # All filtered for death
+        "Agreement (a-b)": "100%" if len(dcd_merged) > 0 else "—",  # Perfect agreement since we filtered for dead patients
+        "c) SRTR DCD Utilized": _fmt_n_pct(len(populations['c) SRTR DCD Utilized']), len(populations['c) SRTR DCD Utilized'])) if len(populations['c) SRTR DCD Utilized']) > 0 else "—",  # 100%
+        "d) Matched EHR Utilized": _fmt_n_pct(len(populations['d) Matched EHR Utilized']), len(populations['d) Matched EHR Utilized'])) if len(populations['d) Matched EHR Utilized']) > 0 else "—",
+        "Agreement (c-d)": "100%" if len(dcd_utilized_merged) > 0 else "—"
+    })
+
     # Add note about agreement
     table.append({
         "Variable": "",
@@ -543,7 +1139,17 @@ def create_dcd_four_population_comparison(
     })
 
     table.append({
-        "Variable": "**Note**: Agreement shows mean diff [95% CI] (% within tolerance where applicable)",
+        "Variable": "**Note**: Agreement shows mean diff [95% CI] (% within tolerance where applicable) for continuous; % for categorical/binary",
+        "a) SRTR DCD": "",
+        "b) Matched EHR": "",
+        "Agreement (a-b)": "",
+        "c) SRTR DCD Utilized": "",
+        "d) Matched EHR Utilized": "",
+        "Agreement (c-d)": ""
+    })
+
+    table.append({
+        "Variable": "**Note**: All populations restricted to HIGH confidence matches with patients who died",
         "a) SRTR DCD": "",
         "b) Matched EHR": "",
         "Agreement (a-b)": "",
