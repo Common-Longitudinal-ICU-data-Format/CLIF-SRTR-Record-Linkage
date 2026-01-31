@@ -25,7 +25,6 @@ Edit with your paths:
   "site_name": "YOUR_SITE",
   "tables_path": "/path/to/clif/tables",
   "file_type": "parquet",
-  "SRTR_data_path": "/path/to/srtr/data",
   "timezone": "America/Chicago",
   "project_root": "/path/to/this/repo"
 }
