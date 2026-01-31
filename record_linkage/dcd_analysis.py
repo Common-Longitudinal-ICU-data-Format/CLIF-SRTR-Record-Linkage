@@ -76,7 +76,9 @@ def create_dcd_donor_summary(
     n_dcd = len(dcd_donors)
 
     # DCD utilized
-    dcd_utilized = dcd_donors[dcd_donors['don_utilized'] == 1]
+    
+    print("!!!!!!!!!!!!!!!!DCD donors value counts", dcd_donors['don_utilized'].value_counts(), "\n")
+    dcd_utilized = dcd_donors[dcd_donors['don_utilized'] == 'Y']
     n_dcd_utilized = len(dcd_utilized)
 
     # Get confidence level breakdown for DCD donors
@@ -230,7 +232,7 @@ def create_dcd_four_population_comparison(
     # Filter for HIGH confidence only
     high_conf_matches = best_matches_df.filter(pl.col("confidence") == "HIGH")
 
-    # Filter for patients who died (assuming is_dead column exists)
+    # Filter for patients who died 
     # Get encounter blocks for patients who died
     dead_patients_df = patients_df.filter(pl.col("is_dead") == 1)
     dead_encounter_blocks = dead_patients_df["encounter_block"].unique().to_list()
@@ -279,12 +281,12 @@ def create_dcd_four_population_comparison(
         )],
         'c) SRTR DCD Utilized': matched_srtr[
             (matched_srtr['DON_NON_HR_BEAT'] == 'Y') &
-            (matched_srtr['don_utilized'] == 1)
+            (matched_srtr['don_utilized'] == 'Y')
         ],
         'd) Matched EHR Utilized': matched_patients[matched_patients['encounter_block'].isin(
             merged_data[
                 (merged_data['DON_NON_HR_BEAT'] == 'Y') &
-                (merged_data['don_utilized'] == 1)
+                (merged_data['don_utilized'] == 'Y')
             ]['encounter_block']
         )]
     }
@@ -293,7 +295,7 @@ def create_dcd_four_population_comparison(
     dcd_merged = merged_data[merged_data['DON_NON_HR_BEAT'] == 'Y']
     dcd_utilized_merged = merged_data[
         (merged_data['DON_NON_HR_BEAT'] == 'Y') &
-        (merged_data['don_utilized'] == 1)
+        (merged_data['don_utilized'] == 'Y')
     ]
 
     # Build comparison table
