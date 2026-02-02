@@ -33,15 +33,8 @@ Edit with your paths:
 ## Run
 
 ### 1. Generate Matches
-```bash
-cd record_linkage
-uv run  01_record_linkage.py
-```
 
-### 2. Create Wide Dataset
-```bash
-uv run  02_create_wide_df.py
-```
+Run notebooks- 01, 02 and 03 in record_linkage directory.
 
 ### 3. View Results
 ```bash
