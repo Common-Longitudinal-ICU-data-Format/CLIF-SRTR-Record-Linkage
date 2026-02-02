@@ -723,7 +723,10 @@ donor_deceased_site_filtered = pl.from_pandas(donor_deceased_site_filtered)
 gender_map = {
     'Male': 'M',
     'Female': 'F',
-    'Unknown': 'U'
+    'Unknown': 'U',
+    'male': 'M',
+    'female': 'F',
+    'unknown': 'U',
 }
 final_df = final_df.with_columns([
     pl.col('sex_category').replace(gender_map).alias('gender')
