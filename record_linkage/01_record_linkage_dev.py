@@ -841,7 +841,10 @@ import pandas as pd
 # ============================================================
 # 1. Prepare cohort for DuckDB (pandas)
 # ============================================================
-
+# Convert final_outcome_dttm to timezone-naive by removing timezone info
+final_df_std = final_df_std.with_columns(
+    pl.col("final_outcome_dttm").dt.replace_time_zone(None).alias("final_outcome_dttm")
+)
 final_cohort_for_sql = (
     final_df_std
     .filter(
