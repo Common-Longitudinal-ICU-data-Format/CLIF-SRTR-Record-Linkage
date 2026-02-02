@@ -38,3 +38,7 @@ hospital_provider_mapping.json
 notebook_to_script.py
 
 PROGRESSIVE_MATCHING_ALGORITHM.md
+
+# aggregate folders
+aggregate/
+all_site_results/
