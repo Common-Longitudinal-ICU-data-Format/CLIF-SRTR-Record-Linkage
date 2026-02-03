@@ -468,6 +468,34 @@ final_df = final_df.with_columns(
 # 2.3 Timezone check
 ################################################################################
 
+print("\n" + "=" * 80)
+print("DATETIME COLUMNS - BEFORE TIMEZONE CONVERSION")
+print("=" * 80)
+
+# Find all columns ending with '_dttm'
+dttm_cols_check = [col for col in final_df.columns if col.endswith('_dttm')]
+
+print(f"\nFound {len(dttm_cols_check)} datetime columns: {dttm_cols_check}\n")
+
+for col in dttm_cols_check:
+    if col in final_df.columns:
+        # Get non-null sample
+        sample = final_df.select(pl.col(col)).drop_nulls().head(3)
+        
+        if len(sample) > 0:
+            # Convert to pandas to check timezone info
+            sample_pd = sample.to_pandas()
+            
+            print(f"Column: {col}")
+            print(f"  Dtype: {final_df[col].dtype}")
+            print(f"  Sample values:")
+            for idx, val in enumerate(sample_pd[col]):
+                tz_info = f" (tz: {val.tzinfo})" if hasattr(val, 'tzinfo') else ""
+                print(f"    [{idx}] {val}{tz_info}")
+            print()
+
+print("=" * 80 + "\n")
+
 # Handle timezone conversion for all *_dttm variables
 import pytz
 from datetime import datetime, date as datetime_date
@@ -547,6 +575,51 @@ final_df = final_df.with_columns(
 )
 
 print(f"\nCreated death_date column from final_outcome_dttm")
+
+print("\n" + "=" * 80)
+print("DATETIME COLUMNS - AFTER TIMEZONE CONVERSION")
+print("=" * 80)
+
+# Find all columns ending with '_dttm'
+dttm_cols = [col for col in final_df.columns if col.endswith('_dttm')]
+
+print(f"\nChecking {len(dttm_cols)} datetime columns: {dttm_cols}\n")
+
+for col in dttm_cols:
+    if col in final_df.columns:
+        # Get non-null sample
+        sample = final_df.select(pl.col(col)).drop_nulls().head(3)
+        
+        if len(sample) > 0:
+            # Convert to pandas to check timezone info
+            sample_pd = sample.to_pandas()
+            
+            print(f"Column: {col}")
+            print(f"  Dtype: {final_df[col].dtype}")
+            print(f"  Sample values:")
+            for idx, val in enumerate(sample_pd[col]):
+                tz_info = f" (tz: {val.tzinfo})" if hasattr(val, 'tzinfo') else ""
+                print(f"    [{idx}] {val}{tz_info}")
+            
+            # Check if timezone is consistent
+            if hasattr(sample_pd[col].iloc[0], 'tzinfo'):
+                if sample_pd[col].iloc[0].tzinfo is not None:
+                    print(f"  ✓ Timezone: {sample_pd[col].iloc[0].tzinfo}")
+                else:
+                    print(f"  ⚠ Timezone: None (timezone-naive)")
+            print()
+
+print("=" * 80 + "\n")
+
+# Also check death_date column if it exists
+if 'death_date' in final_df.columns:
+    print("Death Date Column:")
+    print(f"  Dtype: {final_df['death_date'].dtype}")
+    death_sample = final_df.select('death_date').drop_nulls().head(3).to_pandas()
+    print(f"  Sample values:")
+    for idx, val in enumerate(death_sample['death_date']):
+        print(f"    [{idx}] {val}")
+    print()
 
 # Calculate age in months using final_outcome_dttm and birth_date in final_df
 final_df = final_df.with_columns(

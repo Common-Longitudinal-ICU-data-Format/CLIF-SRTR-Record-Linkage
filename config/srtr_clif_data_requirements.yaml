@@ -487,7 +487,6 @@ respiratory_support_required_columns:
   - recorded_dttm
   - device_name
   - device_category
-  - vent_brand_name
   - mode_name
   - mode_category
   - tracheostomy
