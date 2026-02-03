@@ -525,13 +525,13 @@ for col in dttm_cols:
             # Check if it's a datetime with timezone info
             if hasattr(sample_value, 'tzinfo'):
                 if sample_value.tzinfo is None:
-                    # No timezone info - assume UTC and convert
-                    print(f"  {col}: No timezone info, assuming UTC and converting to {timezone}")
+                    # No timezone info - assume it's already in local timezone, just localize
+                    print(f"  {col}: No timezone info, assuming already in {timezone}, adding timezone metadata")
                     final_df = final_df.with_columns(
                         pl.col(col).map_elements(
-                            lambda x: pytz.UTC.localize(
+                            lambda x: target_tz.localize(
                                 datetime.combine(x, datetime.min.time()) if isinstance(x, datetime_date) and not isinstance(x, datetime) else x
-                            ).astimezone(target_tz) if x is not None else None,
+                            ) if x is not None else None,
                             return_dtype=pl.Datetime(time_unit='us', time_zone=timezone)
                         )
                     )

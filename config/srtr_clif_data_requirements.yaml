@@ -1,10 +1,5 @@
 # =============================================================================
-# APS-CLIF Data Requirements
-# =============================================================================
-# This file defines all required CLIF tables, columns, and category values
-# needed to support the APS (Acute Physiology Score) data collection.
-#
-# Based on APS-CLIF Crosswalk analysis.
+# SRTR-CLIF Data Requirements
 # =============================================================================
 
 # =============================================================================
